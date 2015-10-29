@@ -1,7 +1,5 @@
-import io
 import socket
-import struct
-from PIL import Image
+import subprocess
 
 # Connect a client socket to my_server:8000 (change my_server to the
 # hostname of your server)
@@ -10,23 +8,18 @@ client_socket.connect(('192.168.1.165', 8000))
 connection = client_socket.makefile('wb')
 
 try:
-    while True:
-        # Read the length of the image as a 32-bit unsigned int. If the
-        # length is zero, quit the loop
-        image_len = struct.unpack('<L', connection.read(struct.calcsize('<L')))[0]
-        if not image_len:
-            break
-        # Construct a stream to hold the image data and read the image
-        # data from the connection
-        image_stream = io.BytesIO()
-        image_stream.write(connection.read(image_len))
-        # Rewind the stream, open it as an image with PIL and do some
-        # processing on it
-        image_stream.seek(0)
-        image = Image.open(image_stream)
-        print('Image is %dx%d' % image.size)
-        image.verify()
-        print('Image is verified')
+    # Run a viewer with an appropriate command line. Uncomment the mplayer
+    # version if you would prefer to use mplayer instead of VLC
+    cmdline = ['/Applications/VLC.app/Contents/MacOS/vlc', '--demux', 'h264', '-']
 
+    player = subprocess.Popen(cmdline, stdin=subprocess.PIPE)
+    while True:
+        # Repeatedly read 1k of data from the connection and write it to
+        # the media player's stdin
+        data = connection.read(1024)
+        if not data:
+            break
+        player.stdin.write(data)
 finally:
     connection.close()
+    player.terminate()
